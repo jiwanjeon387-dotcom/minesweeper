@@ -164,12 +164,87 @@ function fireworks(){
    p.className="particle";p.style.left=cx+"%";p.style.top=cy+"%";p.style.setProperty("--x",Math.cos(a)*r+"px");p.style.setProperty("--y",Math.sin(a)*r+"px");p.style.background=`hsl(${Math.random()*360},90%,60%)`;f.appendChild(p)}
  }setTimeout(()=>f.innerHTML="",1400);
 }
-function renderLeaderboard(){
- const tabs=[["all","전체"],["7-normal","7N"],["10-normal","10N"],["12-normal","12N"],["15-normal","15N"]];
- $("leaderTabs").innerHTML=tabs.map(([k,n])=>`<button class="secondary" data-k="${k}">${n}</button>`).join("");
- $("leaderTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{boardKey=b.dataset.k;renderLeaderboard()});
- const r=records(), list=boardKey==="all"?Object.values(r).flat().sort((a,b)=>a.time-b.time).slice(0,10):(r[boardKey]||[]);
- $("leaderList").innerHTML=list.length?list.map((x,i)=>`<div class="leader-row"><b>${i+1}</b><span>${x.name}</span><b>${x.time}s</b></div>`).join(""):`<div class="empty">아직 기록이 없습니다.</div>`;
+async function renderLeaderboard(){
+  const tabs=[
+    ["all","전체"],
+    ["7-all","7×7"],
+    ["10-all","10×10"],
+    ["12-all","12×12"],
+    ["15-all","15×15"]
+  ];
+
+  $("leaderTabs").innerHTML=tabs
+    .map(([k,n])=>`<button class="secondary" data-k="${k}">${n}</button>`)
+    .join("");
+
+  $("leaderTabs").querySelectorAll("button").forEach(button=>{
+    button.onclick=()=>{
+      boardKey=button.dataset.k;
+      renderLeaderboard();
+    };
+  });
+
+  let list=[];
+
+  // Firebase에서 기록 가져오기
+  try{
+    const {collection,getDocs,query,limit} =
+      await import("https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js");
+
+    const result=await getDocs(
+      query(collection(db,"leaderboard"),limit(100))
+    );
+
+    result.forEach(doc=>{
+      const data=doc.data();
+
+      if(
+        typeof data.name==="string" &&
+        Number.isInteger(data.size) &&
+        Number.isInteger(data.time) &&
+        typeof data.difficulty==="string"
+      ){
+        list.push(data);
+      }
+    });
+
+  }catch(error){
+    console.error("Firebase 리더보드 불러오기 실패:",error);
+  }
+
+  // 맵 크기 필터
+  if(boardKey!=="all"){
+    const selectedSize=Number(boardKey.split("-")[0]);
+
+    list=list.filter(record=>
+      record.size===selectedSize
+    );
+  }
+
+  // 기록이 빠른 순서
+  list.sort((a,b)=>a.time-b.time);
+
+  // 상위 10명
+  list=list.slice(0,10);
+
+  if(list.length===0){
+    $("leaderList").innerHTML=
+      `<div class="empty">아직 기록이 없습니다.</div>`;
+    return;
+  }
+
+  $("leaderList").innerHTML=list
+    .map((record,index)=>`
+      <div class="leader-row">
+        <b>${index+1}</b>
+        <span>
+          ${record.name}
+          · ${labels[record.difficulty]||record.difficulty}
+        </span>
+        <b>${record.time}초</b>
+      </div>
+    `)
+    .join("");
 }
 function neighbors(i){const r=Math.floor(i/size),c=i%size,a=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;let nr=r+dr,nc=c+dc;if(nr>=0&&nr<size&&nc>=0&&nc<size)a.push(nr*size+nc)}return a}
 function start(){
