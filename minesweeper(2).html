@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>지뢰찾기</title>
+<style>
+:root{--bg:#f4f7fb;--panel:#fff;--text:#172033;--muted:#667085;--accent:#4f46e5;--cell:#e7ecf3;--hover:#d9e1ec;--revealed:#f8fafc;--border:#d7deea;--danger:#ef4444;--ok:#10b981}
+[data-theme=dark]{--bg:#0f172a;--panel:#182235;--text:#eef2ff;--muted:#a7b0c2;--accent:#818cf8;--cell:#263248;--hover:#334155;--revealed:#111827;--border:#344158;--danger:#f87171;--ok:#34d399}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;padding:28px 14px}.app{max-width:1050px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:31px}.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:20px;box-shadow:0 10px 30px #0000000d}
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}label{font-size:12px;color:var(--muted);font-weight:800;display:block;margin-bottom:6px}
+select,button{font:inherit}select{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);font-weight:700}
+button{cursor:pointer}.primary{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:11px 16px;font-weight:800}.secondary{border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:10px;padding:10px 13px;font-weight:800}
+.stats{display:flex;gap:9px;align-items:center;margin:16px 0 12px;flex-wrap:wrap}.stat{border:1px solid var(--border);background:var(--revealed);padding:8px 11px;border-radius:10px;font-size:13px}.message{flex:1;text-align:center;font-weight:800}.win{color:var(--ok)}.lose{color:var(--danger)}
+.board-wrap{display:flex;justify-content:center;overflow:auto;padding:4px}.board{display:grid;grid-template-columns:repeat(var(--size),minmax(24px,48px));gap:3px}.cell{width:clamp(24px,6vw,48px);height:clamp(24px,6vw,48px);border:1px solid var(--border);border-radius:6px;background:var(--cell);color:var(--text);font-size:clamp(12px,2.4vw,17px);font-weight:900;padding:0}.cell:hover:not(.revealed){background:var(--hover)}.revealed{background:var(--revealed);cursor:default}.mine{background:#ef444425}.flag{font-size:14px}.n1{color:#2563eb}.n2{color:#16a34a}.n3{color:#dc2626}.n4{color:#7c3aed}.n5{color:#b45309}.n6{color:#0891b2}.n7{color:#111827}.n8{color:#64748b}
+.tools{display:flex;gap:9px;justify-content:center;margin-top:14px;flex-wrap:wrap}.hint{background:#f59e0b;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:800}.hint:disabled{opacity:.45;cursor:not-allowed}
+.layout{display:grid;grid-template-columns:1fr 270px;gap:16px}.leader{height:max-content}.leader h2{font-size:18px;margin:0 0 12px}.leader-tabs{display:flex;gap:5px;margin-bottom:10px}.leader-tabs button{flex:1;font-size:12px;padding:7px}.leader-row{display:grid;grid-template-columns:28px 1fr 70px;gap:5px;padding:8px 5px;border-bottom:1px solid var(--border);font-size:12px}.empty{color:var(--muted);text-align:center;padding:15px 0}.help{text-align:center;color:var(--muted);font-size:12px;margin-top:10px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.primary{width:100%}}
+
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:20;backdrop-filter:blur(4px)}
+.overlay.show{display:flex}.result-card{position:relative;width:min(420px,90vw);background:var(--panel);border:1px solid var(--border);border-radius:24px;padding:30px;text-align:center;box-shadow:0 25px 80px #0006;animation:pop .35s ease}
+.result-card h2{font-size:30px;margin:0 0 8px}.result-card p{color:var(--muted);margin:8px 0 22px}.result-time{font-size:42px;font-weight:900;margin:12px 0}.close-result{position:absolute;right:14px;top:12px;border:0;background:transparent;color:var(--muted);font-size:22px}
+.fireworks{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:21}.particle{position:absolute;width:6px;height:6px;border-radius:50%;animation:burst 1.1s ease-out forwards}
+.stats-panel{margin-top:16px}.stats-panel h2{font-size:18px;margin:0 0 12px}.stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.stat-box{background:var(--revealed);border:1px solid var(--border);border-radius:12px;padding:12px 6px;text-align:center}.stat-box b{display:block;font-size:20px}.stat-box span{font-size:11px;color:var(--muted)}
+@keyframes pop{from{transform:scale(.75);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes burst{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
+@media(max-width:700px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div><h1>지뢰찾기</h1><div class="sub">크기 · 난이도 · 힌트를 선택하고 최고 기록에 도전하세요.</div></div><button class="secondary" id="themeBtn">☾ 다크모드</button></header>
+<div class="layout">
+<main class="panel">
+<div class="controls">
+<div><label>맵 크기</label><select id="size"><option value="7">7 × 7</option><option value="10">10 × 10</option><option value="12">12 × 12</option><option value="15">15 × 15</option></select></div>
+<div><label>난이도</label><select id="difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="extreme">Extreme</option></select></div>
+<div><label>화면 모드</label><select id="theme"><option value="light">Light</option><option value="dark">Dark</option></select></div>
+<div><label>기록 이름</label><input id="player" maxlength="12" placeholder="Player" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);font-weight:700"></div>
+<button class="primary" id="newGame">새 게임</button>
+</div>
+<div class="stats"><div class="stat">💣 <b id="mineCount">0</b></div><div class="message" id="message">게임을 시작하세요.</div><div class="stat">💡 힌트 <b id="hintCount">2</b>/2</div><div class="stat">⏱ <b id="timer">0</b>초</div></div>
+<div class="board-wrap"><div class="board" id="board"></div></div>
+<div class="tools"><button class="hint" id="hint">💡 힌트 사용</button></div>
+<div class="help">왼쪽 클릭: 열기 · 오른쪽 클릭: 깃발 · 힌트는 한 게임당 2회</div>
+
+<section class="panel stats-panel">
+<h2>📊 플레이 통계</h2>
+<div class="stat-grid">
+<div class="stat-box"><b id="totalGames">0</b><span>총 게임 수</span></div>
+<div class="stat-box"><b id="winRate">0%</b><span>승률</span></div>
+<div class="stat-box"><b id="avgTime">0초</b><span>평균 플레이 시간</span></div>
+<div class="stat-box"><b id="bestTime">-</b><span>최고 기록</span></div>
+<div class="stat-box"><b id="foundMines">0</b><span>발견한 지뢰 수</span></div>
+</div>
+</section>
+</main>
+<aside class="panel leader"><h2>🏆 리더보드</h2><div class="leader-tabs" id="leaderTabs"></div><div id="leaderList"></div></aside>
+</div></div>
+
+<div class="overlay" id="resultOverlay"><div class="result-card">
+<button class="close-result" id="closeResult">×</button>
+<h2 id="resultTitle"></h2><p id="resultText"></p><div class="result-time" id="resultTime"></div>
+<button class="primary" id="resultNew">다시 플레이</button>
+</div></div><div class="fireworks" id="fireworks"></div>
+<script>
+const $=id=>document.getElementById(id);
+let size,mines,cells,gameOver,started,flags,revealed,seconds,timerId,hints;
+const rates={easy:.12,normal:.17,hard:.22,extreme:.25};
+const labels={easy:"Easy",normal:"Normal",hard:"Hard",extreme:"Extreme"};
+let boardKey="all";
+
+function key(){return size+"-"+difficulty.value}
+function records(){try{return JSON.parse(localStorage.getItem("minesweeper-records")||"{}")}catch{return{}}}
+function saveRecord(){
+ const name=($("player").value.trim()||"Player").slice(0,12), r=records(), k=key();
+ r[k]=r[k]||[];r[k].push({name,time:seconds,date:new Date().toLocaleDateString("ko-KR")});
+ r[k].sort((a,b)=>a.time-b.time);r[k]=r[k].slice(0,10);localStorage.setItem("minesweeper-records",JSON.stringify(r));
+}
+function getStats(){try{return JSON.parse(localStorage.getItem("minesweeper-stats")||'{"games":0,"wins":0,"time":0,"best":null,"mines":0}')}catch{return{games:0,wins:0,time:0,best:null,mines:0}}}
+function updateStats(win){
+ const st=getStats(); st.games++; if(win)st.wins++; st.time+=seconds;
+ if(win && (st.best===null || seconds<st.best))st.best=seconds;
+ if(win)st.mines+=mines;
+ localStorage.setItem("minesweeper-stats",JSON.stringify(st));renderStats();
+}
+function renderStats(){
+ const st=getStats();$("totalGames").textContent=st.games;$("winRate").textContent=st.games?Math.round(st.wins/st.games*100)+"%":"0%";
+ $("avgTime").textContent=st.games?Math.round(st.time/st.games)+"초":"0초";$("bestTime").textContent=st.best===null?"-":st.best+"초";$("foundMines").textContent=st.mines;
+}
+function showResult(win){
+ $("resultTitle").textContent=win?"🎉 지뢰밭 정복!":"💥 게임 오버!";
+ $("resultText").textContent=win?"모든 안전한 칸을 찾아냈습니다.":"지뢰를 밟았습니다. 다음 게임에서는 더 신중하게!";
+ $("resultTime").textContent=seconds+"초"; $("resultOverlay").classList.add("show");
+ if(win)fireworks();
+}
+function fireworks(){
+ const f=$("fireworks");f.innerHTML="";
+ for(let b=0;b<7;b++){const cx=15+Math.random()*70,cy=15+Math.random()*55;
+  for(let i=0;i<22;i++){let p=document.createElement("i"),a=Math.PI*2*i/22,r=45+Math.random()*80;
+   p.className="particle";p.style.left=cx+"%";p.style.top=cy+"%";p.style.setProperty("--x",Math.cos(a)*r+"px");p.style.setProperty("--y",Math.sin(a)*r+"px");p.style.background=`hsl(${Math.random()*360},90%,60%)`;f.appendChild(p)}
+ }setTimeout(()=>f.innerHTML="",1400);
+}
+function renderLeaderboard(){
+ const tabs=[["all","전체"],["7-normal","7N"],["10-normal","10N"],["12-normal","12N"],["15-normal","15N"]];
+ $("leaderTabs").innerHTML=tabs.map(([k,n])=>`<button class="secondary" data-k="${k}">${n}</button>`).join("");
+ $("leaderTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{boardKey=b.dataset.k;renderLeaderboard()});
+ const r=records(), list=boardKey==="all"?Object.values(r).flat().sort((a,b)=>a.time-b.time).slice(0,10):(r[boardKey]||[]);
+ $("leaderList").innerHTML=list.length?list.map((x,i)=>`<div class="leader-row"><b>${i+1}</b><span>${x.name}</span><b>${x.time}s</b></div>`).join(""):`<div class="empty">아직 기록이 없습니다.</div>`;
+}
+function neighbors(i){const r=Math.floor(i/size),c=i%size,a=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;let nr=r+dr,nc=c+dc;if(nr>=0&&nr<size&&nc>=0&&nc<size)a.push(nr*size+nc)}return a}
+function start(){
+ clearInterval(timerId);size=+$("size").value;mines=Math.max(1,Math.floor(size*size*rates[$("difficulty").value]));
+ cells=Array.from({length:size*size},(_,i)=>({i,mine:false,revealed:false,flag:false,count:0}));
+ gameOver=false;started=false;flags=revealed=seconds=0;hints=2;$("timer").textContent=0;$("hintCount").textContent=2;$("mineCount").textContent=mines;
+ $("message").textContent="게임을 시작하세요."; $("message").className="message";$("board").style.setProperty("--size",size);render();
+}
+function place(first){
+ let a=cells.map(x=>x.i).filter(i=>i!==first);for(let i=a.length-1;i;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+ a.slice(0,mines).forEach(i=>cells[i].mine=true);cells.forEach(c=>c.count=neighbors(c.i).filter(i=>cells[i].mine).length);
+}
+function begin(i){started=true;place(i);timerId=setInterval(()=>{$("timer").textContent=++seconds},1000)}
+function render(){const b=$("board");b.innerHTML="";cells.forEach(c=>{let e=document.createElement("button");e.className="cell";if(c.revealed){e.classList.add("revealed");if(c.mine){e.classList.add("mine");e.textContent="💣"}else if(c.count){e.textContent=c.count;e.classList.add("n"+c.count)}}else if(c.flag){e.classList.add("flag");e.textContent="🚩"}e.onclick=()=>open(c.i);e.oncontextmenu=x=>{x.preventDefault();flag(c.i)};b.appendChild(e)})}
+function reveal(i){let q=[i],seen=new Set();while(q.length){let x=q.shift();if(seen.has(x))continue;seen.add(x);let c=cells[x];if(c.mine||c.flag||c.revealed)continue;c.revealed=true;revealed++;if(!c.count)neighbors(x).forEach(n=>q.push(n))}}
+function open(i){if(gameOver||cells[i].flag||cells[i].revealed)return;if(!started)begin(i);if(cells[i].mine){lose();return}reveal(i);check();render()}
+function flag(i){if(gameOver||cells[i].revealed)return;let c=cells[i];if(!c.flag&&flags>=mines)return;c.flag=!c.flag;flags+=c.flag?1:-1;$("mineCount").textContent=mines-flags;render();check()}
+function check(){if(revealed===size*size-mines){gameOver=true;clearInterval(timerId);$("message").textContent=`성공! ${seconds}초`;$("message").className="message win";cells.forEach(c=>{if(c.mine)c.revealed=true});saveRecord();updateStats(true);render();showResult(true)}}
+function lose(){gameOver=true;clearInterval(timerId);cells.forEach(c=>{if(c.mine)c.revealed=true});$("message").textContent="지뢰를 밟았습니다.";$("message").className="message lose";updateStats(false);render();showResult(false)}
+function useHint(){if(gameOver||hints<=0)return;if(!started)begin(0);let safe=cells.filter(c=>!c.mine&&!c.revealed&&!c.flag);if(!safe.length)return;let c=safe[Math.floor(Math.random()*safe.length)];reveal(c.i);hints--;$("hintCount").textContent=hints;render();check()}
+function theme(t){document.documentElement.dataset.theme=t;$("theme").value=t;$("themeBtn").textContent=t==="dark"?"☀ 라이트모드":"☾ 다크모드";localStorage.setItem("ms-theme",t)}
+$("newGame").onclick=start;$("resultNew").onclick=()=>{$("resultOverlay").classList.remove("show");start()};$("closeResult").onclick=()=>$("resultOverlay").classList.remove("show");$("size").onchange=start;$("difficulty").onchange=start;$("hint").onclick=useHint;$("theme").onchange=e=>theme(e.target.value);$("themeBtn").onclick=()=>theme($("theme").value==="dark"?"light":"dark");
+theme(localStorage.getItem("ms-theme")||"light");renderLeaderboard();renderStats();start();
+</script>
+</body></html>
