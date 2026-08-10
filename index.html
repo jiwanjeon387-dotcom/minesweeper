@@ -97,10 +97,48 @@ let boardKey="all";
 
 function key(){return size+"-"+difficulty.value}
 function records(){try{return JSON.parse(localStorage.getItem("minesweeper-records")||"{}")}catch{return{}}}
-function saveRecord(){
- const name=($("player").value.trim()||"Player").slice(0,12), r=records(), k=key();
- r[k]=r[k]||[];r[k].push({name,time:seconds,date:new Date().toLocaleDateString("ko-KR")});
- r[k].sort((a,b)=>a.time-b.time);r[k]=r[k].slice(0,10);localStorage.setItem("minesweeper-records",JSON.stringify(r));
+async function saveRecord(){
+  const name=($("player").value.trim()||"Player").slice(0,12);
+  const r=records();
+  const k=key();
+
+  // 기존 브라우저 기록
+  r[k]=r[k]||[];
+  r[k].push({
+    name,
+    time:seconds,
+    date:new Date().toLocaleDateString("ko-KR")
+  });
+
+  r[k].sort((a,b)=>a.time-b.time);
+  r[k]=r[k].slice(0,10);
+
+  localStorage.setItem(
+    "minesweeper-records",
+    JSON.stringify(r)
+  );
+
+  // Firebase 기록
+  try{
+    if(auth.currentUser){
+      const { collection, addDoc, serverTimestamp } =
+        await import("https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js");
+
+      await addDoc(collection(db,"leaderboard"),{
+        name:name,
+        size:size,
+        difficulty:difficulty.value,
+        time:seconds,
+        createdAt:serverTimestamp()
+      });
+
+      console.log("Firebase 기록 저장 완료");
+    }
+  }catch(error){
+    console.error("Firebase 기록 저장 실패:",error);
+  }
+
+  renderLeaderboard();
 }
 function getStats(){try{return JSON.parse(localStorage.getItem("minesweeper-stats")||'{"games":0,"wins":0,"time":0,"best":null,"mines":0}')}catch{return{games:0,wins:0,time:0,best:null,mines:0}}}
 function updateStats(win){
