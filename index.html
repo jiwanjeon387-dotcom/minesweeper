@@ -258,7 +258,17 @@ function place(first){
  a.slice(0,mines).forEach(i=>cells[i].mine=true);cells.forEach(c=>c.count=neighbors(c.i).filter(i=>cells[i].mine).length);
 }
 function begin(i){started=true;place(i);timerId=setInterval(()=>{$("timer").textContent=++seconds},1000)}
-function render(){const b=$("board");b.innerHTML="";cells.forEach(c=>{let e=document.createElement("button");e.className="cell";if(c.revealed){e.classList.add("revealed");if(c.mine){e.classList.add("mine");e.textContent="💣"}else if(c.count){e.textContent=c.count;e.classList.add("n"+c.count)}}else if(c.flag){e.classList.add("flag");e.textContent="🚩"}e.onclick=()=>open(c.i);e.oncontextmenu=x=>{x.preventDefault();flag(c.i)};b.appendChild(e)})}
+function render(){const b=$("board");b.innerHTML="";cells.forEach(c=>{let e=document.createElement("button");e.className="cell";if(c.revealed){e.classList.add("revealed");if(c.mine){e.classList.add("mine");e.textContent="💣"}else if(c.count){e.textContent=c.count;e.classList.add("n"+c.count)}}else if(c.flag){e.classList.add("flag");e.textContent="🚩"}e.onclick=()=>open(c.i);
+e.oncontextmenu=x=>{x.preventDefault();flag(c.i)};
+
+let touchTimer;
+e.ontouchstart=()=>{
+  touchTimer=setTimeout(()=>{
+    flag(c.i);
+  },500);
+};
+e.ontouchend=()=>clearTimeout(touchTimer);
+e.ontouchmove=()=>clearTimeout(touchTimer);b.appendChild(e)})}
 function reveal(i){let q=[i],seen=new Set();while(q.length){let x=q.shift();if(seen.has(x))continue;seen.add(x);let c=cells[x];if(c.mine||c.flag||c.revealed)continue;c.revealed=true;revealed++;if(!c.count)neighbors(x).forEach(n=>q.push(n))}}
 function open(i){if(gameOver||cells[i].flag||cells[i].revealed)return;if(!started)begin(i);if(cells[i].mine){lose();return}reveal(i);check();render()}
 function flag(i){if(gameOver||cells[i].revealed)return;let c=cells[i];if(!c.flag&&flags>=mines)return;c.flag=!c.flag;flags+=c.flag?1:-1;$("mineCount").textContent=mines-flags;render();check()}
