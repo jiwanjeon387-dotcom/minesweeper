@@ -65,7 +65,30 @@ button{cursor:pointer}.primary{border:0;background:var(--accent);color:#fff;bord
 <h2 id="resultTitle"></h2><p id="resultText"></p><div class="result-time" id="resultTime"></div>
 <button class="primary" id="resultNew">다시 플레이</button>
 </div></div><div class="fireworks" id="fireworks"></div>
-<script>
+<script type="module">
+ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBKDt1u24jxuGC3adMW9zePK6q7fkbs7AU",
+  authDomain: "minesweeper-16867.firebaseapp.com",
+  projectId: "minesweeper-16867",
+  storageBucket: "minesweeper-16867.firebasestorage.app",
+  messagingSenderId: "683627544580",
+  appId: "1:683627544580:web:fa143871a32c67adc37551"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const auth = getAuth(app);
+
+try{
+  await signInAnonymously(auth);
+}catch(err){
+  console.error(err);
+}
 const $=id=>document.getElementById(id);
 let size,mines,cells,gameOver,started,flags,revealed,seconds,timerId,hints;
 const rates={easy:.12,normal:.17,hard:.22,extreme:.25};
